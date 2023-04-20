@@ -23,7 +23,12 @@ export function OffscreenCanvas({ worker, ...props }) {
     if (!worker) return
 
     const canvas = canvasRef.current
-    const offscreen = canvasRef.current.transferControlToOffscreen()
+    let offscreen
+    try {
+      offscreen = canvasRef.current.transferControlToOffscreen()
+    } catch (e) {
+      console.log('hi')
+    }
 
     worker.postMessage(
       {
@@ -47,6 +52,8 @@ export function OffscreenCanvas({ worker, ...props }) {
             type: 'dom_events',
             payload: {
               eventName,
+              pointerId: event.pointerId,
+              pointerType: event.pointerType,
               button: event.button,
               buttons: event.buttons,
               altKey: event.altKey,
@@ -101,19 +108,40 @@ export function render(children) {
 
   const handleInit = (payload) => {
     const { props, drawingSurface: canvas, width, height, pixelRatio } = payload
-    root = createRoot(canvas)
-    root.configure({
-      events: createPointerEvents,
-      size: size = { width, height, updateStyle: false },
-      dpr: (dpr = Math.min(Math.max(1, pixelRatio), 2)),
-      ...props,
-    })
-    root.render(children)
+    try {
+      Object.assign(canvas, {
+        clientWidth: width,
+        clientHeight: width,        
+        style: {
+          touchAction: 'none',
+        },
+        ownerDocument: canvas,
+        setPointerCapture() {},
+        releasePointerCapture() {},
+        addEventListener(event, callback) {
+          emitter.on(event, callback)
+        },
+        removeEventListener(event, callback) {
+          emitter.off(event, callback)
+        },
+      })
+
+      root = createRoot(canvas)
+      root.configure({
+        events: createPointerEvents,
+        size: (size = { width, height, updateStyle: false }),
+        dpr: (dpr = Math.min(Math.max(1, pixelRatio), 2)),
+        ...props,
+      })
+      root.render(children)
+    } catch (e) {
+      console.log('uh oh', e)
+    }
   }
 
   const handleResize = ({ width, height }) => {
     if (!root) return
-    root.configure({ size: size = { width, height, updateStyle: false }, dpr })
+    root.configure({ size: (size = { width, height, updateStyle: false }), dpr })
   }
 
   const handleEvents = (payload) => {
@@ -141,6 +169,7 @@ export function render(children) {
   }
 
   self.window = {}
+  self.document = {}
 
   /** R3F event manager for web offscreen canvas */
   function createPointerEvents(store) {
