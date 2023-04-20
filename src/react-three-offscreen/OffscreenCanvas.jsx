@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import React, { useEffect, useRef } from 'react'
-import mitt from 'mitt'
 import { extend, createRoot, createEvents } from '@react-three/fiber'
+import mitt from 'mitt'
 
 const DOM_EVENTS = {
   onClick: ['click', false],
@@ -48,10 +48,10 @@ export function OffscreenCanvas({ worker, ...props }) {
       canvas.addEventListener(
         eventName,
         (event) => {
-          if (eventName === 'contextmenu') {
-            event.preventDefault()
-          } else if (eventName === 'pointerdown') {
-            console.log("pointerdown")
+          // Prevent default for all passive events
+          if (!passive) event.preventDefault()
+          // Capture pointer automatically on pointer down
+          if (eventName === 'pointerdown') {
             event.target.setPointerCapture(event.pointerId)
           } else if (eventName === 'pointerup') {
             event.target.releasePointerCapture(event.pointerId)
@@ -123,9 +123,7 @@ export function render(children) {
       Object.assign(canvas, {
         clientWidth: width,
         clientHeight: height,
-        style: {
-          touchAction: 'none',
-        },
+        style: { touchAction: 'none' },
         ownerDocument: canvas,
         setPointerCapture() {},
         releasePointerCapture() {},
@@ -156,8 +154,7 @@ export function render(children) {
   }
 
   const handleEvents = (payload) => {
-    emitter.emit(payload.eventName, { ...payload, preventDefault() {} })
-    emitter.on('disconnect', () => self.postMessage({ type: 'dom_events_disconnect' }))
+    emitter.emit(payload.eventName, { ...payload, preventDefault() {}, stopPropagation() {} })
   }
 
   const handleProps = (payload) => {
@@ -214,7 +211,6 @@ export function render(children) {
             const [eventName] = DOM_EVENTS[name]
             emitter.off(eventName, event)
           })
-          emitter.emit('disconnect')
           set((state) => ({ events: { ...state.events, connected: undefined } }))
         }
       },
