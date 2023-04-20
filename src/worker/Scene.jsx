@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 
 function Cube(props) {
@@ -26,14 +26,12 @@ function Cube(props) {
   )
 }
 
-const Comp = ({ position }) => {
+export default function App() {
   return (
     <>
       <ambientLight />
       <pointLight position={[10, 10, 10]} />
-      <Cube position={position} />
+      <Cube />
     </>
-  );
+  )
 }
-
-export default Comp
