@@ -27,7 +27,7 @@ export function OffscreenCanvas({ worker, ...props }) {
     try {
       offscreen = canvasRef.current.transferControlToOffscreen()
     } catch (e) {
-      console.log('hi')
+      // ...
     }
 
     worker.postMessage(
@@ -111,7 +111,7 @@ export function render(children) {
     try {
       Object.assign(canvas, {
         clientWidth: width,
-        clientHeight: width,        
+        clientHeight: height,        
         style: {
           touchAction: 'none',
         },
