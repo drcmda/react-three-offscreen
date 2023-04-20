@@ -47,10 +47,20 @@ export function OffscreenCanvas({ worker, ...props }) {
             type: 'dom_events',
             payload: {
               eventName,
+              button: event.button,
+              buttons: event.buttons,
+              altKey: event.altKey,
+              ctrlKey: event.ctrlKey,
+              metaKey: event.metaKey,
+              shiftKey: event.shiftKey,
+              movementX: event.movementX,
+              movementY: event.movementY,
               clientX: event.clientX,
               clientY: event.clientY,
               offsetX: event.offsetX,
               offsetY: event.offsetY,
+              pageX: event.pageX,
+              pageY: event.pageY,
               x: event.x,
               y: event.y,
             },
@@ -76,62 +86,66 @@ export function OffscreenCanvas({ worker, ...props }) {
   useEffect(() => {
     if (!worker) return
     worker.postMessage({ type: 'props', payload: props })
-  }, [props])
+  }, [worker, props])
 
   return <canvas ref={canvasRef} />
 }
 
 export function render(children) {
   extend(THREE)
-  
+
   let root
+  let dpr = [1, 2]
+  let size = { width: 0, height: 0, updateStyle: false }
   const emitter = mitt()
-  
+
   const handleInit = (payload) => {
     const { props, drawingSurface: canvas, width, height, pixelRatio } = payload
     root = createRoot(canvas)
     root.configure({
       events: createPointerEvents,
-      size: { width, height, updateStyle: false },
-      dpr: Math.min(Math.max(1, pixelRatio), 2),
+      size: size = { width, height, updateStyle: false },
+      dpr: (dpr = Math.min(Math.max(1, pixelRatio), 2)),
       ...props,
     })
     root.render(children)
   }
-  
+
   const handleResize = ({ width, height }) => {
     if (!root) return
-    root.configure({ size: { width, height, updateStyle: false } })
+    root.configure({ size: size = { width, height, updateStyle: false }, dpr })
   }
-  
+
   const handleEvents = (payload) => {
     emitter.emit(payload.eventName, payload)
     emitter.on('disconnect', () => self.postMessage({ type: 'dom_events_disconnect' }))
   }
-  
+
   const handleProps = (payload) => {
-    emitter.emit('props', payload)
+    if (!root) return
+    if (payload.dpr) dpr = payload.dpr
+    root.configure({ size, dpr, ...payload })
   }
-  
+
   const handlerMap = {
     resize: handleResize,
     init: handleInit,
     dom_events: handleEvents,
     props: handleProps,
   }
-  
+
   self.onmessage = (event) => {
     const { type, payload } = event.data
     const handler = handlerMap[type]
     if (handler) handler(payload)
   }
-  
+
   self.window = {}
-  
+
   /** R3F event manager for web offscreen canvas */
   function createPointerEvents(store) {
     const { handlePointer } = createEvents(store)
-  
+
     return {
       priority: 1,
       enabled: true,
@@ -141,7 +155,7 @@ export function render(children) {
         state.pointer.set((event.offsetX / state.size.width) * 2 - 1, -(event.offsetY / state.size.height) * 2 + 1)
         state.raycaster.setFromCamera(state.pointer, state.camera)
       },
-  
+
       connected: undefined,
       handlers: Object.keys(DOM_EVENTS).reduce((acc, key) => ({ ...acc, [key]: handlePointer(key) }), {}),
       connect: (target) => {
