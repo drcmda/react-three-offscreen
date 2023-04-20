@@ -48,10 +48,21 @@ export function OffscreenCanvas({ worker, ...props }) {
       canvas.addEventListener(
         eventName,
         (event) => {
+          if (eventName === 'contextmenu') {
+            event.preventDefault()
+          } else if (eventName === 'pointerdown') {
+            console.log("pointerdown")
+            event.target.setPointerCapture(event.pointerId)
+          } else if (eventName === 'pointerup') {
+            event.target.releasePointerCapture(event.pointerId)
+          }
+
           worker.postMessage({
             type: 'dom_events',
             payload: {
               eventName,
+              deltaX: event.deltaX,
+              deltaY: event.deltaY,
               pointerId: event.pointerId,
               pointerType: event.pointerType,
               button: event.button,
@@ -111,7 +122,7 @@ export function render(children) {
     try {
       Object.assign(canvas, {
         clientWidth: width,
-        clientHeight: height,        
+        clientHeight: height,
         style: {
           touchAction: 'none',
         },
@@ -145,7 +156,7 @@ export function render(children) {
   }
 
   const handleEvents = (payload) => {
-    emitter.emit(payload.eventName, payload)
+    emitter.emit(payload.eventName, { ...payload, preventDefault() {} })
     emitter.on('disconnect', () => self.postMessage({ type: 'dom_events_disconnect' }))
   }
 
